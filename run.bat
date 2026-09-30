@@ -55,5 +55,10 @@ if defined CHROME (
   exit /b 1
 )
 
-call npm run open
+set "COMMAND=%~1"
+if not defined COMMAND set "COMMAND=open"
+
+echo [INFO] Executando: npm run %COMMAND%
+echo.
+call npm run %COMMAND%
 exit /b %errorlevel%
