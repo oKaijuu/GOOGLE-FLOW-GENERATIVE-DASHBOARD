@@ -59,6 +59,14 @@ export type FlowInspection = {
   candidateGenerateButtons: string[];
   policyError: string | null;
   interactiveElements: InteractiveElement[];
+  creator?: {
+    promptEditorFound: boolean;
+    promptEditorAriaLabel: string | null;
+    generationButtonFound: boolean;
+    generationButtonDisabled: boolean | null;
+    settingsButtonFound: boolean;
+    addElementsButtonFound: boolean;
+  };
 };
 
 export class FlowAutomation {
@@ -253,6 +261,11 @@ export class FlowAutomation {
           .catch(() => null)
       )?.trim() || null;
 
+    const generationButton = page.locator('button[aria-label="Iniciar geração"]').first();
+    const settingsButton = page.locator('button[aria-label="Configurações"]').first();
+    const addElementsButton = page.locator('button[aria-label="Adicionar elementos à caixa de comando"]').first();
+    const promptEditor = page.locator('[contenteditable="true"]').first();
+
     const result: FlowInspection = {
       url: page.url(),
       title: await page.title().catch(() => ""),
@@ -264,6 +277,18 @@ export class FlowAutomation {
       candidateGenerateButtons: [...new Set(candidateGenerateButtons)],
       policyError,
       interactiveElements,
+      creator: {
+        promptEditorFound: (await promptEditor.count()) > 0,
+        promptEditorAriaLabel:
+          (await promptEditor.getAttribute("aria-label").catch(() => null)) || null,
+        generationButtonFound: (await generationButton.count()) > 0,
+        generationButtonDisabled:
+          (await generationButton.count()) > 0
+            ? await generationButton.isDisabled().catch(() => null)
+            : null,
+        settingsButtonFound: (await settingsButton.count()) > 0,
+        addElementsButtonFound: (await addElementsButton.count()) > 0,
+      },
     };
 
     await fs.writeFile(
