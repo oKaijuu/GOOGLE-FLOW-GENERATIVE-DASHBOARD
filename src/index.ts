@@ -6,7 +6,16 @@ async function main() {
 
   try {
     await flow.start();
-    await flow.open();
+
+    const testProject =
+      process.env.FLOW_TEST_PROJECT ??
+      "https://flow.google.com/project/ea257c6f-662b-4af0-8963-18963ae15afd";
+
+    if (command === "inspect-settings") {
+      await flow.openProject(testProject);
+    } else {
+      await flow.open();
+    }
 
     if (command === "open") {
       console.log("Google Flow aberto.");
