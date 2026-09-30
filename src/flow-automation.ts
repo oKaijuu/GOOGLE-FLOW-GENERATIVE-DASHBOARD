@@ -425,6 +425,123 @@ export class FlowAutomation {
     return this.collectInspection(page);
   }
 
+  async generateImage(options: {
+    prompt: string;
+    model?: "Nano Banana 2" | "Nano Banana Pro";
+    aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
+    quantity?: 1 | 2 | 3 | 4;
+  }) {
+    const page = this.getPage();
+
+    if (!options.prompt.trim()) {
+      throw new Error("O prompt não pode estar vazio.");
+    }
+
+    await this.ensureCreatorOpen();
+
+    const settingsButton = page.locator('button[aria-label="Configurações"]').first();
+    await settingsButton.click();
+    await page.waitForTimeout(500);
+
+    // Painel de imagem: group-2 = proporção, group-3 = quantidade.
+    if (options.aspectRatio) {
+      const aspect = page
+        .locator('[name="mat-button-toggle-group-2"]')
+        .filter({ hasText: new RegExp(`\\b${options.aspectRatio.replace(":", "\\:")}\\b`) })
+        .first();
+
+      if ((await aspect.count()) === 0) {
+        throw new Error(`Proporção "${options.aspectRatio}" não encontrada no painel de imagem.`);
+      }
+
+      await aspect.click();
+    }
+
+    if (options.quantity) {
+      const quantity = page
+        .locator('[name="mat-button-toggle-group-3"]')
+        .filter({ hasText: new RegExp(`^\\s*x${options.quantity}\\s*$`) })
+        .first();
+
+      if ((await quantity.count()) === 0) {
+        throw new Error(`Quantidade x${options.quantity} não encontrada no painel de imagem.`);
+      }
+
+      await quantity.click();
+    }
+
+    if (options.model) {
+      const modelButton = page
+        .locator('button[aria-label="Modelo padrão de geração de imagens"]')
+        .first();
+
+      if ((await modelButton.count()) === 0) {
+        throw new Error("Seletor do modelo de geração de imagens não encontrado.");
+      }
+
+      await modelButton.click();
+      await page.waitForTimeout(300);
+
+      const modelOption = page
+        .getByText(options.model, { exact: true })
+        .last();
+
+      if ((await modelOption.count()) === 0) {
+        await page.keyboard.press("Escape");
+        throw new Error(
+          `Modelo "${options.model}" não apareceu no menu. A interface pode ter alterado as opções disponíveis.`
+        );
+      }
+
+      await modelOption.click();
+      await page.waitForTimeout(300);
+    }
+
+    const saveButton = page.getByRole("button", { name: "Salvar", exact: true }).last();
+
+    if ((await saveButton.count()) > 0) {
+      await saveButton.click();
+      await page.waitForTimeout(500);
+    } else {
+      await page.keyboard.press("Escape").catch(() => undefined);
+    }
+
+    const promptEditor = page.locator('[contenteditable="true"]').first();
+
+    if ((await promptEditor.count()) === 0) {
+      throw new Error("Editor de prompt não encontrado.");
+    }
+
+    await promptEditor.click();
+    await promptEditor.fill(options.prompt);
+
+    const generateButton = page.locator('button[aria-label="Iniciar geração"]').first();
+
+    if ((await generateButton.count()) === 0) {
+      throw new Error('Botão "Iniciar geração" não encontrado.');
+    }
+
+    await page.waitForTimeout(250);
+
+    if (await generateButton.isDisabled()) {
+      throw new Error(
+        'O botão "Iniciar geração" continua desabilitado depois de preencher o prompt.'
+      );
+    }
+
+    await generateButton.click();
+
+    return {
+      started: true,
+      prompt: options.prompt,
+      model: options.model ?? null,
+      aspectRatio: options.aspectRatio ?? null,
+      quantity: options.quantity ?? null,
+      url: page.url(),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   async inspectSettings(): Promise<SettingsInspection> {
     const page = this.getPage();
     await this.ensureCreatorOpen();
