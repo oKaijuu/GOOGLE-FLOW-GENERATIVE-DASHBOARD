@@ -161,11 +161,40 @@ export class FlowAutomation {
     return this.page;
   }
 
-  async open() {
+  async open(url = FLOW_URL) {
     const page = this.getPage();
-    await page.goto(FLOW_URL, { waitUntil: "domcontentloaded" });
+    await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
     return page;
+  }
+
+  async openProject(projectUrl: string) {
+    if (!/^https:\/\/flow\.google\.com\/project\/[a-z0-9-]+(?:\/.*)?$/i.test(projectUrl)) {
+      throw new Error("URL de projeto do Flow inválida.");
+    }
+
+    return this.open(projectUrl);
+  }
+
+  private async ensureCreatorOpen() {
+    const page = this.getPage();
+    const settingsButton = page.locator('button[aria-label="Configurações"]').first();
+
+    if ((await settingsButton.count()) > 0) return;
+
+    const startCreating = page.getByRole("button", {
+      name: /start creating/i,
+    }).first();
+
+    if ((await startCreating.count()) > 0) {
+      await startCreating.click();
+      await page.waitForTimeout(2000);
+      return;
+    }
+
+    throw new Error(
+      'O compositor do Flow não está aberto e o botão "Start Creating" não foi encontrado.'
+    );
   }
 
   private async collectInteractiveElements(page: Page): Promise<InteractiveElement[]> {
@@ -331,11 +360,12 @@ export class FlowAutomation {
 
   async inspectSettings(): Promise<SettingsInspection> {
     const page = this.getPage();
+    await this.ensureCreatorOpen();
     const settingsButton = page.locator('button[aria-label="Configurações"]').first();
 
     if ((await settingsButton.count()) === 0) {
       throw new Error(
-        'O botão "Configurações" não foi encontrado. Execute "inspect-creator" primeiro e verifique se o compositor do Flow está aberto.'
+        'O compositor do Flow foi aberto, mas o botão "Configurações" não apareceu.'
       );
     }
 
