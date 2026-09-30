@@ -154,11 +154,7 @@ export class FlowAutomation {
     return page;
   }
 
-  async inspect(): Promise<FlowInspection> {
-    const page = this.getPage();
-
-    // A inspeção não depende dos seletores que usaremos para a automação.
-    // Ela lê os elementos interativos que realmente existem no DOM neste momento.
+  private async collectInspection(page: Page): Promise<FlowInspection> {
     const interactiveElements = await page.evaluate(() => {
       const selector = [
         "button",
@@ -198,7 +194,9 @@ export class FlowAutomation {
             tag: element.tagName.toLowerCase(),
             role,
             type: input.type || null,
-            text: (html.innerText || html.textContent || "").replace(/\\s+/g, " ").trim(),
+            text: (html.innerText || html.textContent || "")
+              .replace(/\\s+/g, " ")
+              .trim(),
             ariaLabel: element.getAttribute("aria-label"),
             title: element.getAttribute("title"),
             placeholder: input.getAttribute("placeholder"),
@@ -233,11 +231,16 @@ export class FlowAutomation {
     const uploadInputFound =
       (await page.locator('input[type="file"]').count()) > 0;
 
-    const buttonTexts = await page.locator("button, [role='button']").allTextContents();
+    const buttonTexts = await page
+      .locator("button, [role='button']")
+      .allTextContents();
+
     const candidateGenerateButtons = buttonTexts
       .map((x) => x.replace(/\\s+/g, " ").trim())
       .filter(Boolean)
-      .filter((x) => /gerar|generate|criar|create|enviar|send|run/i.test(x));
+      .filter((x) =>
+        /gerar|generate|criar|create|enviar|send|run|start creating/i.test(x)
+      );
 
     const policyError =
       (
@@ -275,6 +278,30 @@ export class FlowAutomation {
     });
 
     return result;
+  }
+
+  async inspect(): Promise<FlowInspection> {
+    const page = this.getPage();
+    return this.collectInspection(page);
+  }
+
+  async inspectCreator(): Promise<FlowInspection> {
+    const page = this.getPage();
+
+    const startCreating = page.getByRole("button", {
+      name: /start creating/i,
+    }).first();
+
+    if ((await startCreating.count()) === 0) {
+      throw new Error(
+        'O botão "Start Creating" não foi encontrado. Execute o inspect normal para verificar a tela atual.'
+      );
+    }
+
+    await startCreating.click();
+    await page.waitForTimeout(2000);
+
+    return this.collectInspection(page);
   }
 
   async close() {
