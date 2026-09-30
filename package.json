@@ -7,6 +7,7 @@
   "scripts": {
     "inspect": "tsx src/index.ts inspect",
     "inspect-creator": "tsx src/index.ts inspect-creator",
+    "inspect-settings": "tsx src/index.ts inspect-settings",
     "open": "tsx src/index.ts open",
     "generate": "tsx src/index.ts generate"
   },
