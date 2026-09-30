@@ -49,9 +49,10 @@ if defined CHROME (
   echo.
   set "FLOW_BROWSER_EXECUTABLE=!CHROME!"
 ) else (
-  echo [INFO] Chrome/Chromium nao encontrado.
-  echo [INFO] Tentando usar o navegador do Playwright...
+  echo [ERRO] Chrome/Chromium nao encontrado.
+  echo [ERRO] Instale o Google Chrome ou Chromium e execute novamente.
   echo.
+  exit /b 1
 )
 
 call npm run open
