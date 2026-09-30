@@ -58,7 +58,7 @@ if defined CHROME (
 set "COMMAND=%~1"
 if not defined COMMAND set "COMMAND=open"
 
-echo [INFO] Executando: npm run %COMMAND% -- %*
+echo [INFO] Executando: npm run %COMMAND% -- %2 %3 %4 %5 %6 %7 %8 %9
 echo.
-call npm run %COMMAND% -- %*
+call npm run %COMMAND% -- %2 %3 %4 %5 %6 %7 %8 %9
 exit /b %errorlevel%
