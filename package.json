@@ -9,7 +9,9 @@
     "inspect-creator": "tsx src/index.ts inspect-creator",
     "inspect-settings": "tsx src/index.ts inspect-settings",
     "open": "tsx src/index.ts open",
-    "generate": "tsx src/index.ts generate"
+    "generate": "tsx src/index.ts generate",
+    "verify": "tsx src/index.ts verify",
+    "download": "tsx src/index.ts download"
   },
   "dependencies": {
     "playwright": "^1.55.0"
