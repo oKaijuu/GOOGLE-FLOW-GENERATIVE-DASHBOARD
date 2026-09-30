@@ -21,6 +21,12 @@ async function main() {
       return;
     }
 
+    if (command === "inspect-creator") {
+      const result = await flow.inspectCreator();
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
     if (command === "generate") {
       console.error(
         "Geração ainda não foi automatizada: o JSON fornecido não registra de forma confiável a ação final de geração."
@@ -33,7 +39,7 @@ async function main() {
     }
 
     console.error(`Comando desconhecido: ${command}`);
-    console.error("Use: npm run open | npm run inspect | npm run generate");
+    console.error("Use: npm run open | npm run inspect | npm run inspect-creator | npm run generate");
     process.exitCode = 1;
   } finally {
     if (command !== "open") await flow.close();
