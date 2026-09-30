@@ -443,11 +443,12 @@ export class FlowAutomation {
     await settingsButton.click();
     await page.waitForTimeout(500);
 
-    // Painel de imagem: group-2 = proporção, group-3 = quantidade.
+    // O Flow expõe essas opções como radios. Há um segundo grupo
+    // equivalente para vídeo, por isso usamos o primeiro match: o painel
+    // de imagem aparece antes do painel de vídeo na interface atual.
     if (options.aspectRatio) {
       const aspect = page
-        .locator('[name="mat-button-toggle-group-2"]')
-        .filter({ hasText: new RegExp(`\\b${options.aspectRatio.replace(":", "\\:")}\\b`) })
+        .getByRole("radio", { name: options.aspectRatio, exact: true })
         .first();
 
       if ((await aspect.count()) === 0) {
@@ -459,8 +460,7 @@ export class FlowAutomation {
 
     if (options.quantity) {
       const quantity = page
-        .locator('[name="mat-button-toggle-group-3"]')
-        .filter({ hasText: new RegExp(`^\\s*x${options.quantity}\\s*$`) })
+        .getByRole("radio", { name: `x${options.quantity}`, exact: true })
         .first();
 
       if ((await quantity.count()) === 0) {
