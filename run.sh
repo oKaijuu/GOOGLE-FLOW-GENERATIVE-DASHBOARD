@@ -52,4 +52,7 @@ else
   exit 1
 fi
 
-npm run open
+COMMAND="${1:-open}"
+echo "[INFO] Executando: npm run $COMMAND"
+echo
+npm run "$COMMAND"
