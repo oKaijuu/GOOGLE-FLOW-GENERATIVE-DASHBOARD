@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.flow-profile/
+.flow-downloads/
+.env
+.DS_Store
