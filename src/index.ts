@@ -1,4 +1,5 @@
 import { FlowAutomation } from "./flow-automation.js";
+import { FlowResults } from "./flow-results.js";
 
 function parseGenerateArgs(args: string[]) {
   const prompt = args.find((arg) => !arg.startsWith("--"));
@@ -65,7 +66,7 @@ async function main() {
       process.env.FLOW_TEST_PROJECT ??
       "https://flow.google.com/project/ea257c6f-662b-4af0-8963-18963ae15afd";
 
-    if (command === "inspect-settings" || command === "generate") {
+    if (command === "inspect-settings" || command === "generate" || command === "verify" || command === "download") {
       await flow.openProject(testProject);
     } else {
       await flow.open();
@@ -92,6 +93,23 @@ async function main() {
 
     if (command === "inspect-settings") {
       const result = await flow.inspectSettings();
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    if (command === "verify" || command === "download") {
+      const prompt = process.argv.slice(3).find((arg) => !arg.startsWith("--"));
+      const results = new FlowResults(flow);
+
+      if (command === "verify") {
+        const result = await results.inspect(prompt);
+        console.log("Resultados existentes:");
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      const result = await results.downloadExisting(prompt);
+      console.log("Downloads concluídos:");
       console.log(JSON.stringify(result, null, 2));
       return;
     }
