@@ -6,6 +6,11 @@ const FLOW_URL = "https://flow.google.com/";
 const PROFILE_DIR = path.resolve(".flow-profile");
 const DOWNLOAD_DIR = path.resolve(".flow-downloads");
 
+function browserExecutable(): string | undefined {
+  const configured = process.env.FLOW_BROWSER_EXECUTABLE;
+  return configured && configured.trim() ? configured : undefined;
+}
+
 export type FlowInspection = {
   url: string;
   title: string;
@@ -25,8 +30,11 @@ export class FlowAutomation {
     await fs.mkdir(PROFILE_DIR, { recursive: true });
     await fs.mkdir(DOWNLOAD_DIR, { recursive: true });
 
+    const executablePath = browserExecutable();
+
     this.context = await chromium.launchPersistentContext(PROFILE_DIR, {
       headless: false,
+      ...(executablePath ? { executablePath } : {}),
       acceptDownloads: true,
       viewport: { width: 1440, height: 1000 },
     });
