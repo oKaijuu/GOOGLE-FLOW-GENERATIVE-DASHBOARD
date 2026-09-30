@@ -9,9 +9,21 @@ function parseGenerateArgs(args: string[]) {
     );
   }
 
-  const modelArg = args.find((arg) => arg.startsWith("--model="))?.slice(8);
-  const aspectArg = args.find((arg) => arg.startsWith("--aspect="))?.slice(9);
-  const quantityArg = args.find((arg) => arg.startsWith("--quantity="))?.slice(11);
+  const readOption = (name: string): string | undefined => {
+    const inline = args.find((arg) => arg.startsWith(`${name}=`));
+    if (inline) return inline.slice(name.length + 1);
+
+    const index = args.findIndex((arg) => arg === name);
+    if (index >= 0 && args[index + 1] && !args[index + 1].startsWith("--")) {
+      return args[index + 1];
+    }
+
+    return undefined;
+  };
+
+  const modelArg = readOption("--model");
+  const aspectArg = readOption("--aspect");
+  const quantityArg = readOption("--quantity");
 
   const models = ["Nano Banana 2", "Nano Banana Pro"] as const;
   const aspects = ["16:9", "4:3", "1:1", "3:4", "9:16"] as const;
