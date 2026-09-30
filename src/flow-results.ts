@@ -149,9 +149,12 @@ export class FlowResults {
     }
 
     const downloaded: string[] = [];
+    const initialCount = await controls.count();
 
-    while (await controls.count()) {
-      const control = controls.first();
+    for (let index = 0; index < initialCount && downloaded.length < 20; index++) {
+      if (index >= await controls.count()) break;
+
+      const control = controls.nth(index);
       const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
 
       await control.click();
@@ -162,37 +165,6 @@ export class FlowResults {
 
       await download.saveAs(destination);
       downloaded.push(destination);
-
-      await page.waitForTimeout(300);
-      controls = page.locator(downloadButtonSelector()).filter({ visible: true });
-
-      if (prompt) {
-        const promptMatch = page
-          .getByText(prompt, { exact: false })
-          .filter({ visible: true })
-          .first();
-
-        let scoped = promptMatch;
-        let scopedControls = page.locator("button[data-never-match]");
-
-        for (let level = 0; level < 8; level++) {
-          const parent = scoped.locator("xpath=..");
-          const candidate = parent
-            .locator(downloadButtonSelector())
-            .filter({ visible: true });
-
-          if ((await candidate.count()) > 0) {
-            scopedControls = candidate;
-            break;
-          }
-
-          scoped = parent;
-        }
-
-        controls = scopedControls;
-      }
-
-      if (downloaded.length >= 20) break;
     }
 
     return {
