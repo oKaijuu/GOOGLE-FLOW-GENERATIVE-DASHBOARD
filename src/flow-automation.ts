@@ -178,22 +178,89 @@ export class FlowAutomation {
 
   private async ensureCreatorOpen() {
     const page = this.getPage();
-    const settingsButton = page.locator('button[aria-label="Configurações"]').first();
 
-    if ((await settingsButton.count()) > 0) return;
+    // O Flow pode carregar o projeto alguns segundos depois do goto.
+    await page.waitForTimeout(1500);
 
-    const startCreating = page.getByRole("button", {
-      name: /start creating/i,
-    }).first();
+    const hasComposer = async () => {
+      const settings =
+        (await page.locator('button[aria-label="Configurações"]').count()) > 0;
+      const prompt =
+        (await page.locator('[contenteditable="true"]').count()) > 0;
+      const generation =
+        (await page.locator('button[aria-label="Iniciar geração"]').count()) > 0;
 
-    if ((await startCreating.count()) > 0) {
-      await startCreating.click();
+      return settings || (prompt && generation);
+    };
+
+    if (await hasComposer()) return;
+
+    // Não dependa do idioma da interface. O projeto pode estar em português,
+    // onde "Start Creating" não existe.
+    const candidates = page.getByRole("button").filter({
+      hasText: /start creating|começar a criar|começar|criar|create/i,
+    });
+
+    const candidateCount = await candidates.count();
+
+    for (let i = 0; i < candidateCount; i++) {
+      const candidate = candidates.nth(i);
+
+      if (!(await candidate.isVisible().catch(() => false))) continue;
+      if (await candidate.isDisabled().catch(() => false)) continue;
+
+      const label =
+        (await candidate.getAttribute("aria-label").catch(() => null)) ||
+        (await candidate.textContent().catch(() => "")) ||
+        "";
+
+      // Evita clicar em ações secundárias que apenas contenham "criar".
+      if (
+        !/start creating|começar a criar|começar|create|criar/i.test(label) ||
+        /projeto|project|personagem|character|avatar|arquivo|file/i.test(label)
+      ) {
+        continue;
+      }
+
+      await candidate.click();
       await page.waitForTimeout(2000);
-      return;
+
+      if (await hasComposer()) return;
     }
 
+    // Gera um diagnóstico útil em vez de afirmar que "Start Creating" é
+    // necessariamente o controle usado pela versão atual do Flow.
+    const elements = await this.collectInteractiveElements(page);
+    const visibleControls = elements
+      .filter((element) => element.tag === "button" || element.role === "button")
+      .slice(0, 40)
+      .map((element) => ({
+        text: element.text,
+        ariaLabel: element.ariaLabel,
+        title: element.title,
+      }));
+
+    await fs.writeFile(
+      INSPECTION_FILE,
+      JSON.stringify(
+        {
+          url: page.url(),
+          title: await page.title().catch(() => ""),
+          timestamp: new Date().toISOString(),
+          reason: "creator-not-detected",
+          visibleControls,
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    await page.screenshot({ path: INSPECTION_SCREENSHOT, fullPage: true });
+
     throw new Error(
-      'O compositor do Flow não está aberto e o botão "Start Creating" não foi encontrado.'
+      "Não foi possível detectar o compositor do Flow. " +
+        "A tela atual foi salva em .flow-inspection.json e .flow-inspection.png."
     );
   }
 
