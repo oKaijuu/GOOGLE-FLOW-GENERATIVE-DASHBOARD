@@ -9,6 +9,8 @@ const PROFILE_DIR = path.resolve(".flow-profile");
 const DOWNLOAD_DIR = path.resolve(".flow-downloads");
 const INSPECTION_FILE = path.resolve(".flow-inspection.json");
 const INSPECTION_SCREENSHOT = path.resolve(".flow-inspection.png");
+const SETTINGS_INSPECTION_FILE = path.resolve(".flow-settings-inspection.json");
+const SETTINGS_INSPECTION_SCREENSHOT = path.resolve(".flow-settings-inspection.png");
 
 function browserExecutable(): string | undefined {
   const configured = process.env.FLOW_BROWSER_EXECUTABLE;
@@ -46,6 +48,15 @@ type InteractiveElement = {
   contentEditable: boolean;
   disabled: boolean;
   visible: boolean;
+};
+
+type SettingsInspection = {
+  url: string;
+  title: string;
+  timestamp: string;
+  dialogs: string[];
+  menus: string[];
+  interactiveElements: InteractiveElement[];
 };
 
 export type FlowInspection = {
@@ -89,9 +100,6 @@ export class FlowAutomation {
 
     const port = await findFreePort();
 
-    // O Chrome é iniciado como um navegador normal, com um perfil separado.
-    // Não são aplicadas flags de stealth, alteração de User-Agent ou manipulação
-    // de navigator.webdriver. O usuário faz o login manualmente nesta sessão.
     this.browserProcess = spawn(
       executablePath,
       [
@@ -141,9 +149,7 @@ export class FlowAutomation {
     }
 
     this.page =
-      this.context.pages().find((candidate) =>
-        candidate.url().startsWith("http")
-      ) ??
+      this.context.pages().find((candidate) => candidate.url().startsWith("http")) ??
       this.context.pages()[0] ??
       (await this.context.newPage());
 
@@ -162,8 +168,8 @@ export class FlowAutomation {
     return page;
   }
 
-  private async collectInspection(page: Page): Promise<FlowInspection> {
-    const interactiveElements = await page.evaluate(() => {
+  private async collectInteractiveElements(page: Page): Promise<InteractiveElement[]> {
+    return page.evaluate(() => {
       const selector = [
         "button",
         "a[href]",
@@ -195,15 +201,14 @@ export class FlowAutomation {
           const html = element as HTMLElement;
           const input = element as HTMLInputElement;
           const role =
-            element.getAttribute("role") ||
-            html.getAttribute("aria-role");
+            element.getAttribute("role") || html.getAttribute("aria-role");
 
           return {
             tag: element.tagName.toLowerCase(),
             role,
             type: input.type || null,
             text: (html.innerText || html.textContent || "")
-              .replace(/\\s+/g, " ")
+              .replace(/\s+/g, " ")
               .trim(),
             ariaLabel: element.getAttribute("aria-label"),
             title: element.getAttribute("title"),
@@ -211,12 +216,15 @@ export class FlowAutomation {
             name: input.getAttribute("name"),
             id: input.id || null,
             contentEditable: html.isContentEditable,
-            disabled:
-              "disabled" in input ? Boolean(input.disabled) : false,
+            disabled: "disabled" in input ? Boolean(input.disabled) : false,
             visible: true,
           };
         });
     });
+  }
+
+  private async collectInspection(page: Page): Promise<FlowInspection> {
+    const interactiveElements = await this.collectInteractiveElements(page);
 
     const model =
       (await page
@@ -244,7 +252,7 @@ export class FlowAutomation {
       .allTextContents();
 
     const candidateGenerateButtons = buttonTexts
-      .map((x) => x.replace(/\\s+/g, " ").trim())
+      .map((x) => x.replace(/\s+/g, " ").trim())
       .filter(Boolean)
       .filter((x) =>
         /gerar|generate|criar|create|enviar|send|run|start creating/i.test(x)
@@ -263,7 +271,9 @@ export class FlowAutomation {
 
     const generationButton = page.locator('button[aria-label="Iniciar geração"]').first();
     const settingsButton = page.locator('button[aria-label="Configurações"]').first();
-    const addElementsButton = page.locator('button[aria-label="Adicionar elementos à caixa de comando"]').first();
+    const addElementsButton = page.locator(
+      'button[aria-label="Adicionar elementos à caixa de comando"]'
+    ).first();
     const promptEditor = page.locator('[contenteditable="true"]').first();
 
     const result: FlowInspection = {
@@ -291,28 +301,18 @@ export class FlowAutomation {
       },
     };
 
-    await fs.writeFile(
-      INSPECTION_FILE,
-      JSON.stringify(result, null, 2),
-      "utf8"
-    );
-
-    await page.screenshot({
-      path: INSPECTION_SCREENSHOT,
-      fullPage: true,
-    });
+    await fs.writeFile(INSPECTION_FILE, JSON.stringify(result, null, 2), "utf8");
+    await page.screenshot({ path: INSPECTION_SCREENSHOT, fullPage: true });
 
     return result;
   }
 
   async inspect(): Promise<FlowInspection> {
-    const page = this.getPage();
-    return this.collectInspection(page);
+    return this.collectInspection(this.getPage());
   }
 
   async inspectCreator(): Promise<FlowInspection> {
     const page = this.getPage();
-
     const startCreating = page.getByRole("button", {
       name: /start creating/i,
     }).first();
@@ -329,8 +329,45 @@ export class FlowAutomation {
     return this.collectInspection(page);
   }
 
+  async inspectSettings(): Promise<SettingsInspection> {
+    const page = this.getPage();
+    const settingsButton = page.locator('button[aria-label="Configurações"]').first();
+
+    if ((await settingsButton.count()) === 0) {
+      throw new Error(
+        'O botão "Configurações" não foi encontrado. Execute "inspect-creator" primeiro e verifique se o compositor do Flow está aberto.'
+      );
+    }
+
+    await settingsButton.click();
+    await page.waitForTimeout(500);
+
+    const result: SettingsInspection = {
+      url: page.url(),
+      title: await page.title().catch(() => ""),
+      timestamp: new Date().toISOString(),
+      dialogs: await page.locator('[role="dialog"]').allTextContents(),
+      menus: await page.locator('[role="menu"]').allTextContents(),
+      interactiveElements: await this.collectInteractiveElements(page),
+    };
+
+    await fs.writeFile(
+      SETTINGS_INSPECTION_FILE,
+      JSON.stringify(result, null, 2),
+      "utf8"
+    );
+
+    await page.screenshot({
+      path: SETTINGS_INSPECTION_SCREENSHOT,
+      fullPage: true,
+    });
+
+    await page.keyboard.press("Escape").catch(() => undefined);
+
+    return result;
+  }
+
   async close() {
-    // Disconnect from Chrome without forcing the user's browser session closed.
     await this.browser?.close();
     this.browser = null;
     this.context = null;
