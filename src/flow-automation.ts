@@ -7,6 +7,8 @@ import fs from "node:fs/promises";
 const FLOW_URL = "https://flow.google.com/";
 const PROFILE_DIR = path.resolve(".flow-profile");
 const DOWNLOAD_DIR = path.resolve(".flow-downloads");
+const INSPECTION_FILE = path.resolve(".flow-inspection.json");
+const INSPECTION_SCREENSHOT = path.resolve(".flow-inspection.png");
 
 function browserExecutable(): string | undefined {
   const configured = process.env.FLOW_BROWSER_EXECUTABLE;
@@ -31,15 +33,32 @@ async function findFreePort(): Promise<number> {
   });
 }
 
+type InteractiveElement = {
+  tag: string;
+  role: string | null;
+  type: string | null;
+  text: string;
+  ariaLabel: string | null;
+  title: string | null;
+  placeholder: string | null;
+  name: string | null;
+  id: string | null;
+  contentEditable: boolean;
+  disabled: boolean;
+  visible: boolean;
+};
+
 export type FlowInspection = {
   url: string;
   title: string;
+  timestamp: string;
   model: string | null;
   settings: string[];
   editorFound: boolean;
   uploadInputFound: boolean;
   candidateGenerateButtons: string[];
   policyError: string | null;
+  interactiveElements: InteractiveElement[];
 };
 
 export class FlowAutomation {
@@ -138,11 +157,72 @@ export class FlowAutomation {
   async inspect(): Promise<FlowInspection> {
     const page = this.getPage();
 
-    const model = await page
-      .locator("span.settings-summary, .model-select-trigger-content")
-      .first()
-      .textContent()
-      .catch(() => null);
+    // A inspeção não depende dos seletores que usaremos para a automação.
+    // Ela lê os elementos interativos que realmente existem no DOM neste momento.
+    const interactiveElements = await page.evaluate(() => {
+      const selector = [
+        "button",
+        "a[href]",
+        "input",
+        "textarea",
+        '[contenteditable="true"]',
+        '[role="button"]',
+        '[role="combobox"]',
+        '[role="menuitem"]',
+        '[role="tab"]',
+        '[role="option"]',
+        '[role="radio"]',
+        '[role="switch"]',
+      ].join(",");
+
+      const isVisible = (element: Element) => {
+        const html = element as HTMLElement;
+        const style = window.getComputedStyle(html);
+        const rect = html.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+
+      const clean = (value: string | null | undefined) =>
+        (value ?? "").replace(/\\s+/g, " ").trim();
+
+      return Array.from(document.querySelectorAll(selector))
+        .filter(isVisible)
+        .map((element) => {
+          const html = element as HTMLElement;
+          const input = element as HTMLInputElement;
+          const role =
+            element.getAttribute("role") ||
+            html.getAttribute("aria-role");
+
+          return {
+            tag: element.tagName.toLowerCase(),
+            role,
+            type: input.type || null,
+            text: clean(html.innerText || html.textContent),
+            ariaLabel: element.getAttribute("aria-label"),
+            title: element.getAttribute("title"),
+            placeholder: input.getAttribute("placeholder"),
+            name: input.getAttribute("name"),
+            id: input.id || null,
+            contentEditable: html.isContentEditable,
+            disabled:
+              "disabled" in input ? Boolean(input.disabled) : false,
+            visible: true,
+          };
+        });
+    });
+
+    const model =
+      (await page
+        .locator("span.settings-summary, .model-select-trigger-content")
+        .first()
+        .textContent()
+        .catch(() => null))?.trim() || null;
 
     const settings = await page
       .locator(
@@ -158,28 +238,48 @@ export class FlowAutomation {
     const uploadInputFound =
       (await page.locator('input[type="file"]').count()) > 0;
 
-    const buttonTexts = await page.locator("button").allTextContents();
+    const buttonTexts = await page.locator("button, [role='button']").allTextContents();
     const candidateGenerateButtons = buttonTexts
-      .map((x) => x.replace(/\s+/g, " ").trim())
+      .map((x) => x.replace(/\\s+/g, " ").trim())
       .filter(Boolean)
-      .filter((x) => /gerar|generate|criar|create|enviar|send/i.test(x));
+      .filter((x) => /gerar|generate|criar|create|enviar|send|run/i.test(x));
 
-    const policyError = await page
-      .locator("div.error-text, div.error-header")
-      .first()
-      .textContent()
-      .catch(() => null);
+    const policyError =
+      (
+        await page
+          .locator(
+            "div.error-text, div.error-header, [role='alert'], [aria-live='assertive']"
+          )
+          .first()
+          .textContent()
+          .catch(() => null)
+      )?.trim() || null;
 
-    return {
+    const result: FlowInspection = {
       url: page.url(),
       title: await page.title(),
-      model: model?.trim() || null,
+      timestamp: new Date().toISOString(),
+      model,
       settings: [...new Set(settings.map((x) => x.trim()).filter(Boolean))],
       editorFound,
       uploadInputFound,
       candidateGenerateButtons: [...new Set(candidateGenerateButtons)],
-      policyError: policyError?.trim() || null,
+      policyError,
+      interactiveElements,
     };
+
+    await fs.writeFile(
+      INSPECTION_FILE,
+      JSON.stringify(result, null, 2),
+      "utf8"
+    );
+
+    await page.screenshot({
+      path: INSPECTION_SCREENSHOT,
+      fullPage: true,
+    });
+
+    return result;
   }
 
   async close() {
