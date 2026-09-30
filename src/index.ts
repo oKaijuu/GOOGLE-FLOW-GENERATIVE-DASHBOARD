@@ -1,5 +1,47 @@
 import { FlowAutomation } from "./flow-automation.js";
 
+function parseGenerateArgs(args: string[]) {
+  const prompt = args.find((arg) => !arg.startsWith("--"));
+
+  if (!prompt) {
+    throw new Error(
+      'Uso: npm run generate -- "seu prompt" [--model="Nano Banana Pro"] [--aspect=16:9] [--quantity=1]'
+    );
+  }
+
+  const modelArg = args.find((arg) => arg.startsWith("--model="))?.slice(8);
+  const aspectArg = args.find((arg) => arg.startsWith("--aspect="))?.slice(9);
+  const quantityArg = args.find((arg) => arg.startsWith("--quantity="))?.slice(11);
+
+  const models = ["Nano Banana 2", "Nano Banana Pro"] as const;
+  const aspects = ["16:9", "4:3", "1:1", "3:4", "9:16"] as const;
+  const quantities = [1, 2, 3, 4] as const;
+
+  const model = modelArg
+    ? models.find((value) => value === modelArg)
+    : undefined;
+  const aspectRatio = aspectArg
+    ? aspects.find((value) => value === aspectArg)
+    : undefined;
+  const quantity = quantityArg
+    ? quantities.find((value) => value === Number(quantityArg))
+    : undefined;
+
+  if (modelArg && !model) {
+    throw new Error(`Modelo inválido: ${modelArg}`);
+  }
+
+  if (aspectArg && !aspectRatio) {
+    throw new Error(`Proporção inválida: ${aspectArg}`);
+  }
+
+  if (quantityArg && !quantity) {
+    throw new Error(`Quantidade inválida: ${quantityArg}`);
+  }
+
+  return { prompt, model, aspectRatio, quantity };
+}
+
 async function main() {
   const command = process.argv[2] ?? "inspect";
   const flow = new FlowAutomation();
@@ -11,7 +53,7 @@ async function main() {
       process.env.FLOW_TEST_PROJECT ??
       "https://flow.google.com/project/ea257c6f-662b-4af0-8963-18963ae15afd";
 
-    if (command === "inspect-settings") {
+    if (command === "inspect-settings" || command === "generate") {
       await flow.openProject(testProject);
     } else {
       await flow.open();
@@ -43,13 +85,10 @@ async function main() {
     }
 
     if (command === "generate") {
-      console.error(
-        "Geração ainda não foi automatizada: primeiro precisamos validar as opções reais do painel de configurações."
-      );
-      console.error(
-        "Use 'npm run inspect-settings' para capturar o DOM das configurações."
-      );
-      process.exitCode = 2;
+      const options = parseGenerateArgs(process.argv.slice(3));
+      const result = await flow.generateImage(options);
+      console.log("Geração iniciada:");
+      console.log(JSON.stringify(result, null, 2));
       return;
     }
 
