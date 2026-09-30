@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "inspect": "tsx src/index.ts inspect",
+    "inspect-creator": "tsx src/index.ts inspect-creator",
     "open": "tsx src/index.ts open",
     "generate": "tsx src/index.ts generate"
   },
