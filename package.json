@@ -1,0 +1,20 @@
+{
+  "name": "google-flow-generative-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local Playwright prototype for automating the Google Flow web interface.",
+  "type": "module",
+  "scripts": {
+    "inspect": "tsx src/index.ts inspect",
+    "open": "tsx src/index.ts open",
+    "generate": "tsx src/index.ts generate"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
