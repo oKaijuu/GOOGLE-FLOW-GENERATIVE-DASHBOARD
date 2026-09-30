@@ -175,23 +175,18 @@ export class FlowAutomation {
         '[role="switch"]',
       ].join(",");
 
-      const isVisible = (element: Element) => {
-        const html = element as HTMLElement;
-        const style = window.getComputedStyle(html);
-        const rect = html.getBoundingClientRect();
-        return (
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0
-        );
-      };
-
-      const clean = (value: string | null | undefined) =>
-        (value ?? "").replace(/\\s+/g, " ").trim();
-
       return Array.from(document.querySelectorAll(selector))
-        .filter(isVisible)
+        .filter((element) => {
+          const html = element as HTMLElement;
+          const style = window.getComputedStyle(html);
+          const rect = html.getBoundingClientRect();
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        })
         .map((element) => {
           const html = element as HTMLElement;
           const input = element as HTMLInputElement;
@@ -203,7 +198,7 @@ export class FlowAutomation {
             tag: element.tagName.toLowerCase(),
             role,
             type: input.type || null,
-            text: clean(html.innerText || html.textContent),
+            text: (html.innerText || html.textContent || "").replace(/\\s+/g, " ").trim(),
             ariaLabel: element.getAttribute("aria-label"),
             title: element.getAttribute("title"),
             placeholder: input.getAttribute("placeholder"),
