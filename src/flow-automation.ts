@@ -252,7 +252,7 @@ export class FlowAutomation {
 
     const result: FlowInspection = {
       url: page.url(),
-      title: await page.title(),
+      title: await page.title().catch(() => ""),
       timestamp: new Date().toISOString(),
       model,
       settings: [...new Set(settings.map((x) => x.trim()).filter(Boolean))],
