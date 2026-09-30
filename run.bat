@@ -58,7 +58,10 @@ if defined CHROME (
 set "COMMAND=%~1"
 if not defined COMMAND set "COMMAND=open"
 
-echo [INFO] Executando: npm run %COMMAND% -- %2 %3 %4 %5 %6 %7 %8 %9
+set "FORWARDED=%*"
+if not "%~1"=="" set "FORWARDED=!FORWARDED:*%1 =!"
+
+echo [INFO] Executando: npm run %COMMAND% -- !FORWARDED!
 echo.
-call npm run %COMMAND% -- %2 %3 %4 %5 %6 %7 %8 %9
+call npm run %COMMAND% -- !FORWARDED!
 exit /b %errorlevel%
