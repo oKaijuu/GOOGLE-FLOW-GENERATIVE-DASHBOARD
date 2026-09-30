@@ -156,7 +156,7 @@ export class FlowAutomation {
     return this.page;
   }
 
-  private getPage(): Page {
+  public getPage(): Page {
     if (!this.page) throw new Error("Flow browser is not started.");
     return this.page;
   }
