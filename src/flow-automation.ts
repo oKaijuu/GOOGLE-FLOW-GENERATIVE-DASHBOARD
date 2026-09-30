@@ -160,7 +160,7 @@ export class FlowAutomation {
 
     const buttonTexts = await page.locator("button").allTextContents();
     const candidateGenerateButtons = buttonTexts
-      .map((x) => x.replace(/\\s+/g, " ").trim())
+      .map((x) => x.replace(/\s+/g, " ").trim())
       .filter(Boolean)
       .filter((x) => /gerar|generate|criar|create|enviar|send/i.test(x));
 
