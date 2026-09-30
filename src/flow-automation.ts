@@ -50,38 +50,43 @@ export class FlowAutomation {
   async inspect(): Promise<FlowInspection> {
     const page = this.getPage();
 
-    const model = await page.locator(
-      "span.settings-summary, .model-select-trigger-content"
-    ).first().textContent().catch(() => null);
+    const model = await page
+      .locator("span.settings-summary, .model-select-trigger-content")
+      .first()
+      .textContent()
+      .catch(() => null);
 
-    const settings = await page.locator(
-      "span.settings-summary, span.toggle-text, span.mat-button-toggle-label-content"
-    ).allTextContents();
+    const settings = await page
+      .locator(
+        "span.settings-summary, span.toggle-text, span.mat-button-toggle-label-content"
+      )
+      .allTextContents();
 
     const editorFound =
-      await page.locator("flow-rich-text-editor").count() > 0 ||
-      await page.locator('[contenteditable="true"]').count() > 0 ||
-      await page.locator("textarea").count() > 0;
+      (await page.locator("flow-rich-text-editor").count()) > 0 ||
+      (await page.locator('[contenteditable="true"]').count()) > 0 ||
+      (await page.locator("textarea").count()) > 0;
 
     const uploadInputFound =
-      await page.locator('input[type="file"]').count() > 0 ||
-      await page.locator("input").filter({ has: undefined }).count() > 0;
+      (await page.locator('input[type="file"]').count()) > 0;
 
     const buttonTexts = await page.locator("button").allTextContents();
     const candidateGenerateButtons = buttonTexts
-      .map(x => x.replace(/\\s+/g, " ").trim())
+      .map((x) => x.replace(/\s+/g, " ").trim())
       .filter(Boolean)
-      .filter(x => /gerar|generate|criar|create|enviar|send/i.test(x));
+      .filter((x) => /gerar|generate|criar|create|enviar|send/i.test(x));
 
-    const policyError = await page.locator(
-      "div.error-text, div.error-header"
-    ).first().textContent().catch(() => null);
+    const policyError = await page
+      .locator("div.error-text, div.error-header")
+      .first()
+      .textContent()
+      .catch(() => null);
 
     return {
       url: page.url(),
       title: await page.title(),
       model: model?.trim() || null,
-      settings: [...new Set(settings.map(x => x.trim()).filter(Boolean))],
+      settings: [...new Set(settings.map((x) => x.trim()).filter(Boolean))],
       editorFound,
       uploadInputFound,
       candidateGenerateButtons: [...new Set(candidateGenerateButtons)],
