@@ -27,26 +27,34 @@ async function main() {
       return;
     }
 
+    if (command === "inspect-settings") {
+      const result = await flow.inspectSettings();
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
     if (command === "generate") {
       console.error(
-        "Geração ainda não foi automatizada: o JSON fornecido não registra de forma confiável a ação final de geração."
+        "Geração ainda não foi automatizada: primeiro precisamos validar as opções reais do painel de configurações."
       );
       console.error(
-        "Use 'npm run inspect' para capturar o estado atual do DOM antes de definir o gatilho."
+        "Use 'npm run inspect-settings' para capturar o DOM das configurações."
       );
       process.exitCode = 2;
       return;
     }
 
     console.error(`Comando desconhecido: ${command}`);
-    console.error("Use: npm run open | npm run inspect | npm run inspect-creator | npm run generate");
+    console.error(
+      "Use: npm run open | npm run inspect | npm run inspect-creator | npm run inspect-settings | npm run generate"
+    );
     process.exitCode = 1;
   } finally {
     if (command !== "open") await flow.close();
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
