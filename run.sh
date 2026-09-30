@@ -47,8 +47,9 @@ if [ -n "$BROWSER" ]; then
   echo "     $BROWSER"
   export FLOW_BROWSER_EXECUTABLE="$BROWSER"
 else
-  echo "[INFO] Chrome/Chromium nao encontrado."
-  echo "[INFO] Tentando usar o navegador do Playwright..."
+  echo "[ERRO] Chrome/Chromium nao encontrado."
+  echo "[ERRO] Instale o Google Chrome ou Chromium e execute novamente."
+  exit 1
 fi
 
 npm run open
