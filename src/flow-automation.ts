@@ -440,34 +440,50 @@ export class FlowAutomation {
     await this.ensureCreatorOpen();
 
     const settingsButton = page.locator('button[aria-label="Configurações"]').first();
+    await settingsButton.waitFor({ state: "visible", timeout: 10000 });
     await settingsButton.click();
-    await page.waitForTimeout(500);
 
-    // O Flow expõe essas opções como radios. Há um segundo grupo
-    // equivalente para vídeo, por isso usamos o primeiro match: o painel
-    // de imagem aparece antes do painel de vídeo na interface atual.
+    const saveButton = page.getByRole("button", { name: "Salvar", exact: true }).last();
+    await saveButton.waitFor({ state: "visible", timeout: 10000 });
+
+    // O painel precisa estar completamente aberto antes de alterar qualquer
+    // opção. Os controles são radios no DOM atual do Flow.
+    const imageAspectRadios = page
+      .getByRole("radio")
+      .filter({ visible: true })
+      .filter({ hasText: /^(16:9|4:3|1:1|3:4|9:16)$/ });
+
+    const imageQuantityRadios = page
+      .getByRole("radio")
+      .filter({ visible: true })
+      .filter({ hasText: /^x[1-4]$/ });
+
     if (options.aspectRatio) {
-      const aspect = page
-        .getByRole("radio", { name: options.aspectRatio, exact: true })
+      const aspect = imageAspectRadios
+        .filter({ hasText: options.aspectRatio })
         .first();
 
-      if ((await aspect.count()) === 0) {
-        throw new Error(`Proporção "${options.aspectRatio}" não encontrada no painel de imagem.`);
-      }
-
+      await aspect.waitFor({ state: "visible", timeout: 5000 });
       await aspect.click();
+      await page.waitForTimeout(250);
+
+      if (!(await aspect.isChecked().catch(() => false))) {
+        throw new Error(`O Flow não confirmou a proporção "${options.aspectRatio}" como selecionada.`);
+      }
     }
 
     if (options.quantity) {
-      const quantity = page
-        .getByRole("radio", { name: `x${options.quantity}`, exact: true })
+      const quantity = imageQuantityRadios
+        .filter({ hasText: `x${options.quantity}` })
         .first();
 
-      if ((await quantity.count()) === 0) {
-        throw new Error(`Quantidade x${options.quantity} não encontrada no painel de imagem.`);
-      }
-
+      await quantity.waitFor({ state: "visible", timeout: 5000 });
       await quantity.click();
+      await page.waitForTimeout(250);
+
+      if (!(await quantity.isChecked().catch(() => false))) {
+        throw new Error(`O Flow não confirmou a quantidade x${options.quantity} como selecionada.`);
+      }
     }
 
     if (options.model) {
@@ -475,36 +491,22 @@ export class FlowAutomation {
         .locator('button[aria-label="Modelo padrão de geração de imagens"]')
         .first();
 
-      if ((await modelButton.count()) === 0) {
-        throw new Error("Seletor do modelo de geração de imagens não encontrado.");
-      }
-
+      await modelButton.waitFor({ state: "visible", timeout: 5000 });
       await modelButton.click();
-      await page.waitForTimeout(300);
 
       const modelOption = page
         .getByText(options.model, { exact: true })
+        .filter({ visible: true })
         .last();
 
-      if ((await modelOption.count()) === 0) {
-        await page.keyboard.press("Escape");
-        throw new Error(
-          `Modelo "${options.model}" não apareceu no menu. A interface pode ter alterado as opções disponíveis.`
-        );
-      }
-
+      await modelOption.waitFor({ state: "visible", timeout: 5000 });
       await modelOption.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(400);
     }
 
-    const saveButton = page.getByRole("button", { name: "Salvar", exact: true }).last();
-
-    if ((await saveButton.count()) > 0) {
-      await saveButton.click();
-      await page.waitForTimeout(500);
-    } else {
-      await page.keyboard.press("Escape").catch(() => undefined);
-    }
+    // Só fecha o painel depois que todos os valores foram confirmados.
+    await saveButton.click();
+    await page.waitForTimeout(750);
 
     const promptEditor = page.locator('[contenteditable="true"]').first();
 
